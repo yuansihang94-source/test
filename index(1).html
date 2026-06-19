@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="format-detection" content="telephone=no" />
+<title>端午安康 · C++ 贺卡</title>
+<style>
+  :root{
+    --bg:#1e1e2e; --panel:#181825; --titlebar:#252537;
+    --kw:#c678dd; --str:#98c379; --fn:#61afef; --num:#d19a66;
+    --com:#6b7089; --txt:#cdd6f4; --punc:#abb2bf;
+    --accent:#f5b642; --red:#e06c75; --green:#7ec699;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #3a2d4f 0%, transparent 60%),
+      radial-gradient(900px 500px at 100% 100%, #243b3a 0%, transparent 55%),
+      #14141f;
+    color:var(--txt);
+    min-height:100%;
+    display:flex;align-items:center;justify-content:center;
+    padding:18px;
+    overflow-x:hidden;
+    position:relative;
+  }
+  /* 飘落的粽子/龙舟 */
+  .float{position:fixed;top:-40px;font-size:26px;opacity:.55;animation:fall linear infinite;pointer-events:none;z-index:0;}
+  @keyframes fall{
+    0%{transform:translateY(-40px) rotate(0deg);opacity:0;}
+    10%{opacity:.6;}
+    100%{transform:translateY(105vh) rotate(360deg);opacity:0;}
+  }
+
+  .wrap{width:100%;max-width:440px;position:relative;z-index:1;}
+
+  .greeting-top{text-align:center;margin-bottom:14px;}
+  .greeting-top .zh{font-size:15px;color:var(--accent);letter-spacing:2px;font-weight:600;}
+  .greeting-top .sub{font-size:12px;color:#8b8fa3;margin-top:4px;}
+
+  /* 编辑器窗口 */
+  .editor{
+    background:var(--panel);
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:0 22px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.04);
+  }
+  .titlebar{
+    background:var(--titlebar);
+    display:flex;align-items:center;gap:8px;
+    padding:11px 14px;
+  }
+  .dot{width:12px;height:12px;border-radius:50%;}
+  .dot.r{background:#ff5f56;} .dot.y{background:#ffbd2e;} .dot.g{background:#27c93f;}
+  .filename{margin-left:8px;font-size:12.5px;color:#9aa0b4;font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;}
+  .filename .ext{color:#6b7089;}
+
+  .code{
+    padding:16px 12px 18px;
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,"Courier New",monospace;
+    font-size:12px;line-height:1.85;
+    background:var(--bg);
+    overflow-x:auto;
+  }
+  .ln{white-space:pre;}
+  .ln .gut{display:inline-block;color:#3f4458;width:20px;text-align:right;margin-right:10px;user-select:none;}
+  .kw{color:var(--kw);} .str{color:var(--str);} .fn{color:var(--fn);}
+  .num{color:var(--num);} .com{color:var(--com);font-style:italic;} .punc{color:var(--punc);}
+  .inc{color:var(--str);}
+
+  .runbar{
+    background:var(--titlebar);
+    padding:12px 14px;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .run-btn{
+    background:linear-gradient(135deg,#f5b642,#e0823a);
+    color:#231a08;font-weight:700;border:none;
+    padding:10px 22px;border-radius:9px;font-size:14px;
+    cursor:pointer;display:flex;align-items:center;gap:7px;
+    box-shadow:0 6px 16px rgba(245,182,66,.32);
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .run-btn:active{transform:scale(.95);}
+  .run-hint{font-size:11.5px;color:#6b7089;font-family:"SF Mono",monospace;}
+
+  /* 终端输出 */
+  .terminal{
+    background:#0f0f17;
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    font-size:13px;line-height:1.7;
+    padding:0 14px;
+    max-height:0;opacity:0;
+    transition:max-height .5s ease, opacity .4s ease, padding .4s ease;
+    overflow:hidden;
+    border-top:1px solid rgba(255,255,255,.05);
+  }
+  .terminal.show{max-height:420px;opacity:1;padding:14px;}
+  .term-head{color:#5b6072;font-size:11px;margin-bottom:8px;}
+  .out-line{color:#cdd6f4;min-height:1.7em;}
+  .out-line.big{
+    font-size:20px;font-weight:700;
+    background:linear-gradient(90deg,#f5b642,#7ec699,#61afef);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    margin:6px 0;letter-spacing:1px;
+  }
+  .out-line .ok{color:var(--green);}
+  .cursor{display:inline-block;width:8px;height:15px;background:var(--accent);
+    vertical-align:-2px;margin-left:2px;animation:blink 1s step-end infinite;}
+  @keyframes blink{50%{opacity:0;}}
+  .exit{color:#5b6072;font-size:11px;margin-top:10px;}
+
+  .footer{text-align:center;margin-top:18px;font-size:12px;color:#7c8197;line-height:1.7;}
+  .footer .emoji{font-size:18px;display:block;margin-bottom:6px;}
+  .footer .from{color:var(--accent);font-weight:600;}
+</style>
+</head>
+<body>
+<!-- 飘落装饰由 JS 生成 -->
+
+<div class="wrap">
+  <div class="greeting-top">
+    <div class="zh">🐉 端 午 安 康 🐉</div>
+    <div class="sub">// 一行代码，一份心意 · 送给家长和小朋友</div>
+  </div>
+
+  <div class="editor">
+    <div class="titlebar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="filename">duanwu<span class="ext">.cpp</span></span>
+    </div>
+
+    <div class="code" id="code">
+      <div class="ln"><span class="gut">1</span><span class="com">// 端午节快乐 · Dragon Boat Festival</span></div>
+      <div class="ln"><span class="gut">2</span><span class="kw">#include</span> <span class="inc">&lt;iostream&gt;</span></div>
+      <div class="ln"><span class="gut">3</span><span class="kw">using namespace</span> <span class="punc">std;</span></div>
+      <div class="ln"><span class="gut">4</span></div>
+      <div class="ln"><span class="gut">5</span><span class="kw">int</span> <span class="fn">main</span><span class="punc">() {</span></div>
+      <div class="ln"><span class="gut">6</span>    <span class="fn">cout</span> <span class="punc">&lt;&lt;</span> <span class="str">"🐉 端午安康！"</span> <span class="punc">&lt;&lt;</span> <span class="kw">endl</span><span class="punc">;</span></div>
+      <div class="ln"><span class="gut">7</span>    <span class="fn">cout</span> <span class="punc">&lt;&lt;</span> <span class="str">"愿家长事事顺心 🌿"</span> <span class="punc">&lt;&lt;</span> <span class="kw">endl</span><span class="punc">;</span></div>
+      <div class="ln"><span class="gut">8</span>    <span class="fn">cout</span> <span class="punc">&lt;&lt;</span> <span class="str">"愿小朋友天天向上 🚣"</span> <span class="punc">&lt;&lt;</span> <span class="kw">endl</span><span class="punc">;</span></div>
+      <div class="ln"><span class="gut">9</span>    <span class="kw">return</span> <span class="num">0</span><span class="punc">;</span></div>
+      <div class="ln"><span class="gut">10</span><span class="punc">}</span></div>
+    </div>
+
+    <div class="runbar">
+      <button class="run-btn" id="runBtn">▶ 运行</button>
+      <span class="run-hint">$ g++ duanwu.cpp && ./a.out</span>
+    </div>
+
+    <div class="terminal" id="terminal">
+      <div class="term-head">● 输出 / Output</div>
+      <div id="output"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span class="emoji">🥮 🚣 🌿</span>
+    粽香艾草绕，代码寄安康<br>
+    <span class="from">—— 核桃编程 敬上</span>
+  </div>
+</div>
+
+<script>
+  // 飘落的节日装饰
+  (function(){
+    const icons = ['🥮','🚣','🌿','🐉','🍃'];
+    const n = 9;
+    for(let i=0;i<n;i++){
+      const s=document.createElement('div');
+      s.className='float';
+      s.textContent=icons[i%icons.length];
+      s.style.left=(Math.random()*100)+'%';
+      s.style.fontSize=(18+Math.random()*16)+'px';
+      s.style.animationDuration=(9+Math.random()*8)+'s';
+      s.style.animationDelay=(-Math.random()*10)+'s';
+      document.body.appendChild(s);
+    }
+  })();
+
+  // 运行：逐行打字输出
+  const lines = [
+    {t:'🐉 端午安康！', big:true},
+    {t:'愿家长事事顺心 🌿'},
+    {t:'愿小朋友天天向上 🚣'},
+  ];
+  let done=false;
+  document.getElementById('runBtn').addEventListener('click', function(){
+    const term=document.getElementById('terminal');
+    const out=document.getElementById('output');
+    term.classList.add('show');
+    if(done){ return; }
+    done=true;
+    out.innerHTML='';
+    let i=0;
+    function typeLine(){
+      if(i>=lines.length){
+        const ex=document.createElement('div');
+        ex.className='exit';
+        ex.textContent='[Process exited with code 0]  ✔ 编译成功';
+        out.appendChild(ex);
+        return;
+      }
+      const cfg=lines[i];
+      const div=document.createElement('div');
+      div.className='out-line'+(cfg.big?' big':'');
+      out.appendChild(div);
+      const full=cfg.t; let c=0;
+      const cur=document.createElement('span'); cur.className='cursor';
+      div.appendChild(cur);
+      const iv=setInterval(()=>{
+        c++;
+        div.textContent=full.slice(0,c);
+        div.appendChild(cur);
+        if(c>=full.length){
+          clearInterval(iv);
+          if(i===lines.length-1){ div.removeChild(cur); }
+          i++; setTimeout(typeLine, 260);
+        }
+      }, 70);
+    }
+    typeLine();
+  });
+</script>
+</body>
+</html>
